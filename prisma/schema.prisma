@@ -1,0 +1,65 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Diagram {
+  id              String         @id @default(cuid())
+  name            String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  tables          Table[]
+  relationships   Relationship[]
+}
+
+model Table {
+  id                   String         @id @default(cuid())
+  diagramId            String
+  name                 String
+  positionX            Float
+  positionY            Float
+  color                String         @default("#e0e0e0")
+  diagram              Diagram        @relation(fields: [diagramId], references: [id], onDelete: Cascade)
+  columns              Column[]
+  sourceRelationships  Relationship[] @relation("SourceTable")
+  targetRelationships  Relationship[] @relation("TargetTable")
+}
+
+model Column {
+  id                   String         @id @default(cuid())
+  tableId              String
+  name                 String
+  dataType             String
+  nullable             Boolean        @default(true)
+  indexType            String?
+  autoIncrement        Boolean        @default(false)
+  unsigned             Boolean        @default(false)
+  defaultValue         String?
+  comment              String?
+  order                Int
+  table                Table          @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  sourceRelationships  Relationship[] @relation("SourceColumn")
+  targetRelationships  Relationship[] @relation("TargetColumn")
+}
+
+model Relationship {
+  id              String @id @default(cuid())
+  diagramId       String
+  sourceTableId   String
+  sourceColumnId  String
+  targetTableId   String
+  targetColumnId  String
+  type            String
+  diagram         Diagram @relation(fields: [diagramId], references: [id], onDelete: Cascade)
+  sourceTable     Table   @relation("SourceTable", fields: [sourceTableId], references: [id], onDelete: Cascade)
+  sourceColumn    Column  @relation("SourceColumn", fields: [sourceColumnId], references: [id], onDelete: Cascade)
+  targetTable     Table   @relation("TargetTable", fields: [targetTableId], references: [id], onDelete: Cascade)
+  targetColumn    Column  @relation("TargetColumn", fields: [targetColumnId], references: [id], onDelete: Cascade)
+}
