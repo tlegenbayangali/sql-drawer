@@ -41,6 +41,8 @@ export interface Relationship {
   targetTableId: string;
   targetColumnId: string;
   type: RelationshipType;
+  offsetX?: number;
+  offsetY?: number;
 }
 
 // Diagram interface for frontend

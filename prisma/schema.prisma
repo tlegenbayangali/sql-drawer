@@ -57,6 +57,8 @@ model Relationship {
   targetTableId   String
   targetColumnId  String
   type            String
+  offsetX         Float? @default(0)
+  offsetY         Float? @default(0)
   diagram         Diagram @relation(fields: [diagramId], references: [id], onDelete: Cascade)
   sourceTable     Table   @relation("SourceTable", fields: [sourceTableId], references: [id], onDelete: Cascade)
   sourceColumn    Column  @relation("SourceColumn", fields: [sourceColumnId], references: [id], onDelete: Cascade)

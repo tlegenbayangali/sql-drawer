@@ -4,23 +4,33 @@ import { nanoid } from 'nanoid';
 import type { Diagram, Table, Column, Relationship, ColumnUpdate, TableUpdate, RelationshipUpdate } from '@/lib/types/database';
 import { generateMutedColor } from '@/lib/utils/color-generator';
 
+interface ConnectionState {
+  isConnecting: boolean;
+  sourceHandle: string | null;
+}
+
 interface DiagramState {
   // State
   currentDiagram: Diagram | null;
   tables: Table[];
   relationships: Relationship[];
   selectedTableId: string | null;
+  highlightedTableIds: string[];
   isCreatingTable: boolean;
   isSaving: boolean;
+  isSidebarCollapsed: boolean;
+  connectionState: ConnectionState;
 
   // Actions
   loadDiagram: (diagram: Diagram) => void;
+  toggleSidebar: () => void;
   createTable: (position: { x: number; y: number }) => void;
   updateTable: (id: string, updates: TableUpdate) => void;
   deleteTable: (id: string) => void;
   duplicateTable: (id: string) => void;
   selectTable: (id: string | null) => void;
   setCreatingTableMode: (isCreating: boolean) => void;
+  setConnectionState: (state: ConnectionState) => void;
 
   addColumn: (tableId: string) => void;
   updateColumn: (columnId: string, updates: ColumnUpdate) => void;
@@ -35,9 +45,11 @@ interface DiagramState {
     type: Relationship['type']
   ) => void;
   updateRelationship: (id: string, updates: RelationshipUpdate) => void;
+  swapRelationshipDirection: (id: string) => void;
   deleteRelationship: (id: string) => void;
 
   saveDiagram: () => Promise<void>;
+  reloadDiagram: (diagramId: string) => Promise<void>;
 }
 
 export const useDiagramStore = create<DiagramState>()(
@@ -47,8 +59,14 @@ export const useDiagramStore = create<DiagramState>()(
     tables: [],
     relationships: [],
     selectedTableId: null,
+    highlightedTableIds: [],
     isCreatingTable: false,
     isSaving: false,
+    isSidebarCollapsed: false,
+    connectionState: {
+      isConnecting: false,
+      sourceHandle: null,
+    },
 
     // Load diagram
     loadDiagram: (diagram) => {
@@ -56,6 +74,13 @@ export const useDiagramStore = create<DiagramState>()(
         state.currentDiagram = diagram;
         state.tables = diagram.tables;
         state.relationships = diagram.relationships;
+      });
+    },
+
+    // Toggle sidebar
+    toggleSidebar: () => {
+      set((state) => {
+        state.isSidebarCollapsed = !state.isSidebarCollapsed;
       });
     },
 
@@ -156,12 +181,36 @@ export const useDiagramStore = create<DiagramState>()(
     selectTable: (id) => {
       set((state) => {
         state.selectedTableId = id;
+
+        // Find and highlight related tables
+        if (id) {
+          const relatedTableIds = new Set<string>();
+
+          // Find all tables connected through relationships
+          state.relationships.forEach((rel) => {
+            if (rel.sourceTableId === id) {
+              relatedTableIds.add(rel.targetTableId);
+            } else if (rel.targetTableId === id) {
+              relatedTableIds.add(rel.sourceTableId);
+            }
+          });
+
+          state.highlightedTableIds = Array.from(relatedTableIds);
+        } else {
+          state.highlightedTableIds = [];
+        }
       });
     },
 
     setCreatingTableMode: (isCreating) => {
       set((state) => {
         state.isCreatingTable = isCreating;
+      });
+    },
+
+    setConnectionState: (connectionState) => {
+      set((state) => {
+        state.connectionState = connectionState;
       });
     },
 
@@ -253,6 +302,8 @@ export const useDiagramStore = create<DiagramState>()(
           targetTableId,
           targetColumnId,
           type,
+          offsetX: 0,
+          offsetY: 0,
         };
 
         state.relationships.push(newRelationship);
@@ -268,6 +319,30 @@ export const useDiagramStore = create<DiagramState>()(
       });
     },
 
+    swapRelationshipDirection: (id) => {
+      set((state) => {
+        const relationship = state.relationships.find((r) => r.id === id);
+        if (relationship) {
+          // Swap source and target
+          const tempTableId = relationship.sourceTableId;
+          const tempColumnId = relationship.sourceColumnId;
+
+          relationship.sourceTableId = relationship.targetTableId;
+          relationship.sourceColumnId = relationship.targetColumnId;
+          relationship.targetTableId = tempTableId;
+          relationship.targetColumnId = tempColumnId;
+
+          // Update relationship type accordingly
+          if (relationship.type === '1:N') {
+            relationship.type = 'N:1';
+          } else if (relationship.type === 'N:1') {
+            relationship.type = '1:N';
+          }
+          // 1:1 stays the same
+        }
+      });
+    },
+
     deleteRelationship: (id) => {
       set((state) => {
         state.relationships = state.relationships.filter((r) => r.id !== id);
@@ -278,6 +353,14 @@ export const useDiagramStore = create<DiagramState>()(
     saveDiagram: async () => {
       const { currentDiagram, tables, relationships } = get();
       if (!currentDiagram) return;
+
+      console.log('Saving diagram:', {
+        diagramId: currentDiagram.id,
+        tablesCount: tables.length,
+        relationshipsCount: relationships.length,
+        tables,
+        relationships,
+      });
 
       set((state) => {
         state.isSaving = true;
@@ -296,7 +379,9 @@ export const useDiagramStore = create<DiagramState>()(
         });
 
         if (!response.ok) {
-          throw new Error('Failed to save diagram');
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          console.error('Save failed with status:', response.status, errorData);
+          throw new Error(`Failed to save diagram: ${errorData.error || response.statusText}`);
         }
       } catch (error) {
         console.error('Error saving diagram:', error);
@@ -305,6 +390,28 @@ export const useDiagramStore = create<DiagramState>()(
         set((state) => {
           state.isSaving = false;
         });
+      }
+    },
+
+    // Reload diagram from server
+    reloadDiagram: async (diagramId: string) => {
+      try {
+        const response = await fetch(`/api/diagrams/${diagramId}`);
+
+        if (!response.ok) {
+          throw new Error('Failed to reload diagram');
+        }
+
+        const diagram = await response.json();
+
+        set((state) => {
+          state.currentDiagram = diagram;
+          state.tables = diagram.tables;
+          state.relationships = diagram.relationships;
+        });
+      } catch (error) {
+        console.error('Error reloading diagram:', error);
+        throw error;
       }
     },
   }))

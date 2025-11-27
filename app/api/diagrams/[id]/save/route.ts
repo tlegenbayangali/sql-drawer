@@ -170,8 +170,18 @@ export async function POST(
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error saving diagram:', error);
+
+    // Log the full error details
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+
     return NextResponse.json(
-      { error: 'Failed to save diagram' },
+      {
+        error: 'Failed to save diagram',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }

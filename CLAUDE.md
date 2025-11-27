@@ -220,3 +220,12 @@ The project currently has a known issue with Prisma 7 requiring adapters in Next
 3. **State updates**: Use Zustand store actions, never mutate state directly
 4. **Database changes**: Create migrations with `npx prisma migrate dev`
 5. **UI components**: Use ShadCN components for consistency
+
+## Git Commit Guidelines
+
+When creating git commits, **DO NOT** include Claude as a co-author. Commit messages should not contain:
+- `Co-Authored-By: Claude <noreply@anthropic.com>`
+- References to Claude Code or AI assistance
+- Any mentions of being generated with Claude
+
+Keep commit messages clean and focused on the changes themselves.

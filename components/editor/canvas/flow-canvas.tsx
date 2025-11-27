@@ -34,8 +34,10 @@ export function FlowCanvas() {
   const isCreatingTable = useDiagramStore((state) => state.isCreatingTable);
   const createTable = useDiagramStore((state) => state.createTable);
   const updateTable = useDiagramStore((state) => state.updateTable);
+  const selectTable = useDiagramStore((state) => state.selectTable);
   const createRelationship = useDiagramStore((state) => state.createRelationship);
   const deleteRelationship = useDiagramStore((state) => state.deleteRelationship);
+  const setConnectionState = useDiagramStore((state) => state.setConnectionState);
 
   // Convert tables to ReactFlow nodes
   const nodes: Node[] = useMemo(
@@ -56,8 +58,8 @@ export function FlowCanvas() {
         id: rel.id,
         source: rel.sourceTableId,
         target: rel.targetTableId,
-        sourceHandle: `${rel.sourceTableId}-${rel.sourceColumnId}-right`,
-        targetHandle: `${rel.targetTableId}-${rel.targetColumnId}-left`,
+        sourceHandle: `${rel.sourceTableId}::${rel.sourceColumnId}::right`,
+        targetHandle: `${rel.targetTableId}::${rel.targetColumnId}::left`,
         type: 'relationship',
         data: { relationship: rel },
       })),
@@ -109,6 +111,27 @@ export function FlowCanvas() {
     [onEdgesChange, deleteRelationship]
   );
 
+  // Handle connection start
+  const onConnectStart = useCallback(
+    (_: any, params: { handleId: string | null; handleType: string | null; nodeId: string | null }) => {
+      if (params.handleId) {
+        setConnectionState({
+          isConnecting: true,
+          sourceHandle: params.handleId,
+        });
+      }
+    },
+    [setConnectionState]
+  );
+
+  // Handle connection end
+  const onConnectEnd = useCallback(() => {
+    setConnectionState({
+      isConnecting: false,
+      sourceHandle: null,
+    });
+  }, [setConnectionState]);
+
   // Handle new connections (relationships)
   const onConnect = useCallback(
     (connection: Connection) => {
@@ -116,15 +139,31 @@ export function FlowCanvas() {
         return;
       }
 
-      // Parse handle IDs to get column IDs
-      // Format: tableId-columnId-direction
-      const sourceColumnId = connection.sourceHandle.split('-').slice(1, -1).join('-');
-      const targetColumnId = connection.targetHandle.split('-').slice(1, -1).join('-');
+      // Parse handle IDs to get table and column IDs
+      // Format: tableId::columnId::direction
+      const sourceParts = connection.sourceHandle.split('::');
+      const targetParts = connection.targetHandle.split('::');
+
+      // Extract IDs
+      // sourceParts = [tableId, columnId, direction]
+      const sourceTableId = sourceParts[0];
+      const targetTableId = targetParts[0];
+      const sourceColumnId = sourceParts[1];
+      const targetColumnId = targetParts[1];
+
+      console.log('Connection debug:', {
+        sourceHandle: connection.sourceHandle,
+        targetHandle: connection.targetHandle,
+        sourceTableId,
+        targetTableId,
+        sourceColumnId,
+        targetColumnId,
+      });
 
       createRelationship(
-        connection.source,
+        sourceTableId,
         sourceColumnId,
-        connection.target,
+        targetTableId,
         targetColumnId,
         '1:N'
       );
@@ -135,19 +174,22 @@ export function FlowCanvas() {
   // Handle canvas click for creating tables
   const handlePaneClick = useCallback(
     (event: React.MouseEvent) => {
-      if (!isCreatingTable) return;
+      if (isCreatingTable) {
+        const reactFlowBounds = (event.target as HTMLElement).closest('.react-flow')?.getBoundingClientRect();
+        if (!reactFlowBounds) return;
 
-      const reactFlowBounds = (event.target as HTMLElement).closest('.react-flow')?.getBoundingClientRect();
-      if (!reactFlowBounds) return;
+        const position = {
+          x: event.clientX - reactFlowBounds.left - 150,
+          y: event.clientY - reactFlowBounds.top - 50,
+        };
 
-      const position = {
-        x: event.clientX - reactFlowBounds.left - 150,
-        y: event.clientY - reactFlowBounds.top - 50,
-      };
-
-      createTable(position);
+        createTable(position);
+      } else {
+        // Deselect table when clicking on empty canvas
+        selectTable(null);
+      }
     },
-    [isCreatingTable, createTable]
+    [isCreatingTable, createTable, selectTable]
   );
 
   return (
@@ -158,6 +200,8 @@ export function FlowCanvas() {
         onNodesChange={handleNodesChange}
         onEdgesChange={handleEdgesChange}
         onConnect={onConnect}
+        onConnectStart={onConnectStart}
+        onConnectEnd={onConnectEnd}
         onPaneClick={handlePaneClick}
         nodeTypes={nodeTypes as any}
         edgeTypes={edgeTypes as any}
