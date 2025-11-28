@@ -259,7 +259,6 @@ export function FlowCanvas() {
         deleteKeyCode="Delete"
         panOnDrag={[1, 2]}
         selectionOnDrag={true}
-        selectionMode="partial"
       >
         <Background />
         <Controls />
