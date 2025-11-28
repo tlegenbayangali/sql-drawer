@@ -1,0 +1,6 @@
+# SQLite Database File Placeholder
+
+This is a placeholder file. After running `npx prisma migrate dev`,
+the actual database file `dev.db` will be created in this directory.
+
+The `dev.db` file is excluded from git to prevent committing local database data.
