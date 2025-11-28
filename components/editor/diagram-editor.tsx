@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { ReactFlowProvider } from '@xyflow/react';
 import { useDiagramStore } from '@/lib/stores/diagram-store';
 import { EditorTopBar } from './top-bar/editor-top-bar';
 import { TableSidebar } from './sidebar/table-sidebar';
@@ -23,7 +24,9 @@ export function DiagramEditor({ diagram }: DiagramEditorProps) {
       <EditorTopBar />
       <div className="flex-1 flex overflow-hidden">
         <TableSidebar />
-        <FlowCanvas />
+        <ReactFlowProvider>
+          <FlowCanvas />
+        </ReactFlowProvider>
       </div>
     </div>
   );

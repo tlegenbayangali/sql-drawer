@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ReactFlow,
   Background,
@@ -9,6 +9,7 @@ import {
   useNodesState,
   useEdgesState,
   addEdge,
+  useOnSelectionChange,
   type Node,
   type Edge,
   type Connection,
@@ -19,6 +20,16 @@ import '@xyflow/react/dist/style.css';
 import { useDiagramStore } from '@/lib/stores/diagram-store';
 import { TableNode } from './table-node';
 import { RelationshipEdge } from './relationship-edge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const nodeTypes = {
   table: TableNode,
@@ -35,9 +46,13 @@ export function FlowCanvas() {
   const createTable = useDiagramStore((state) => state.createTable);
   const updateTable = useDiagramStore((state) => state.updateTable);
   const selectTable = useDiagramStore((state) => state.selectTable);
+  const deleteTable = useDiagramStore((state) => state.deleteTable);
   const createRelationship = useDiagramStore((state) => state.createRelationship);
   const deleteRelationship = useDiagramStore((state) => state.deleteRelationship);
   const setConnectionState = useDiagramStore((state) => state.setConnectionState);
+
+  const [nodesToDelete, setNodesToDelete] = useState<Node[]>([]);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Convert tables to ReactFlow nodes
   const nodes: Node[] = useMemo(
@@ -77,6 +92,19 @@ export function FlowCanvas() {
   useMemo(() => {
     setInternalEdges(edges);
   }, [edges, setInternalEdges]);
+
+  // Sync selection from ReactFlow to store
+  const onSelectionChange = useCallback(({ nodes }: { nodes: Node[]; edges: Edge[] }) => {
+    const selectedIds = nodes
+      .filter(node => node.selected)
+      .map(node => node.id);
+
+    selectTable(selectedIds);
+  }, [selectTable]);
+
+  useOnSelectionChange({
+    onChange: onSelectionChange,
+  });
 
   // Handle node position changes
   const handleNodesChange: OnNodesChange = useCallback(
@@ -184,13 +212,31 @@ export function FlowCanvas() {
         };
 
         createTable(position);
-      } else {
-        // Deselect table when clicking on empty canvas
-        selectTable(null);
       }
+      // ReactFlow automatically deselects when clicking empty canvas
     },
-    [isCreatingTable, createTable, selectTable]
+    [isCreatingTable, createTable]
   );
+
+  // Handle node deletion with confirmation for multiple nodes
+  const onNodesDelete = useCallback((deleted: Node[]) => {
+    if (deleted.length > 1) {
+      // Show confirmation dialog for multiple deletions
+      setNodesToDelete(deleted);
+      setShowDeleteDialog(true);
+    } else if (deleted.length === 1) {
+      // Single table - delete immediately
+      deleteTable(deleted[0].id);
+    }
+  }, [deleteTable]);
+
+  const confirmDelete = useCallback(() => {
+    nodesToDelete.forEach(node => {
+      deleteTable(node.id);
+    });
+    setShowDeleteDialog(false);
+    setNodesToDelete([]);
+  }, [nodesToDelete, deleteTable]);
 
   return (
     <div className="flex-1 bg-muted/20">
@@ -203,15 +249,38 @@ export function FlowCanvas() {
         onConnectStart={onConnectStart}
         onConnectEnd={onConnectEnd}
         onPaneClick={handlePaneClick}
+        onNodesDelete={onNodesDelete}
         nodeTypes={nodeTypes as any}
         edgeTypes={edgeTypes as any}
         fitView
         className={isCreatingTable ? 'cursor-crosshair' : ''}
+        selectionKeyCode="Shift"
+        multiSelectionKeyCode="Meta"
+        deleteKeyCode="Delete"
+        panOnDrag={[1, 2]}
+        selectionOnDrag={true}
+        selectionMode="partial"
       >
         <Background />
         <Controls />
         <MiniMap />
       </ReactFlow>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Удалить {nodesToDelete.length} таблиц?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Это действие нельзя отменить. Будут удалены все связанные relationships.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>Удалить</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

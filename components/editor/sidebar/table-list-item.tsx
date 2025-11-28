@@ -12,15 +12,18 @@ interface TableListItemProps {
 
 export function TableListItem({ table }: TableListItemProps) {
   const selectedTableId = useDiagramStore((state) => state.selectedTableId);
-  const selectTable = useDiagramStore((state) => state.selectTable);
+  const selectedTableIds = useDiagramStore((state) => state.selectedTableIds);
 
-  const isSelected = selectedTableId === table.id;
+  const isPrimarySelected = selectedTableId === table.id;
+  const isSelected = selectedTableIds.includes(table.id);
 
   return (
     <Button
-      variant={isSelected ? 'secondary' : 'ghost'}
-      className="w-full justify-start gap-2 h-auto py-1.5 text-sm"
-      onClick={() => selectTable(table.id)}
+      variant={isPrimarySelected ? 'secondary' : isSelected ? 'outline' : 'ghost'}
+      className={`w-full justify-start gap-2 h-auto py-1.5 text-sm ${
+        isSelected && !isPrimarySelected ? 'border-purple-500' : ''
+      }`}
+      disabled
     >
       <TableIcon className="h-3.5 w-3.5 flex-shrink-0" />
       <span className="flex-1 text-left truncate">{table.name}</span>

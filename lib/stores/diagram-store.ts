@@ -15,6 +15,7 @@ interface DiagramState {
   tables: Table[];
   relationships: Relationship[];
   selectedTableId: string | null;
+  selectedTableIds: string[];
   highlightedTableIds: string[];
   isCreatingTable: boolean;
   isSaving: boolean;
@@ -28,7 +29,7 @@ interface DiagramState {
   updateTable: (id: string, updates: TableUpdate) => void;
   deleteTable: (id: string) => void;
   duplicateTable: (id: string) => void;
-  selectTable: (id: string | null) => void;
+  selectTable: (ids: string[]) => void;
   setCreatingTableMode: (isCreating: boolean) => void;
   setConnectionState: (state: ConnectionState) => void;
 
@@ -59,6 +60,7 @@ export const useDiagramStore = create<DiagramState>()(
     tables: [],
     relationships: [],
     selectedTableId: null,
+    selectedTableIds: [],
     highlightedTableIds: [],
     isCreatingTable: false,
     isSaving: false,
@@ -178,21 +180,24 @@ export const useDiagramStore = create<DiagramState>()(
       });
     },
 
-    selectTable: (id) => {
+    selectTable: (ids) => {
       set((state) => {
-        state.selectedTableId = id;
+        state.selectedTableIds = ids;
+        state.selectedTableId = ids.length > 0 ? ids[ids.length - 1] : null;
 
-        // Find and highlight related tables
-        if (id) {
+        // Find and highlight related tables for all selected tables
+        if (ids.length > 0) {
           const relatedTableIds = new Set<string>();
 
-          // Find all tables connected through relationships
-          state.relationships.forEach((rel) => {
-            if (rel.sourceTableId === id) {
-              relatedTableIds.add(rel.targetTableId);
-            } else if (rel.targetTableId === id) {
-              relatedTableIds.add(rel.sourceTableId);
-            }
+          ids.forEach(selectedId => {
+            // Find all tables connected through relationships
+            state.relationships.forEach((rel) => {
+              if (rel.sourceTableId === selectedId) {
+                relatedTableIds.add(rel.targetTableId);
+              } else if (rel.targetTableId === selectedId) {
+                relatedTableIds.add(rel.sourceTableId);
+              }
+            });
           });
 
           state.highlightedTableIds = Array.from(relatedTableIds);

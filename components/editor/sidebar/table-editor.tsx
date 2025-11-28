@@ -51,7 +51,7 @@ export function TableEditor({ table }: TableEditorProps) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => selectTable(null)}
+            onClick={() => selectTable([])}
             className="gap-1.5 h-8"
           >
             <ArrowLeft className="h-3.5 w-3.5" />

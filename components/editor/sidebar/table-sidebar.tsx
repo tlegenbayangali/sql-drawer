@@ -17,12 +17,15 @@ const COLLAPSED_WIDTH = 0;
 export function TableSidebar() {
   const tables = useDiagramStore((state) => state.tables);
   const selectedTableId = useDiagramStore((state) => state.selectedTableId);
+  const selectedTableIds = useDiagramStore((state) => state.selectedTableIds);
   const isCreatingTable = useDiagramStore((state) => state.isCreatingTable);
   const isSidebarCollapsed = useDiagramStore((state) => state.isSidebarCollapsed);
   const setCreatingTableMode = useDiagramStore((state) => state.setCreatingTableMode);
   const toggleSidebar = useDiagramStore((state) => state.toggleSidebar);
 
   const selectedTable = tables.find((t) => t.id === selectedTableId);
+  const selectedTables = tables.filter((t) => selectedTableIds.includes(t.id));
+  const hasMultipleSelected = selectedTableIds.length > 1;
 
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [isResizing, setIsResizing] = useState(false);
@@ -103,7 +106,23 @@ export function TableSidebar() {
 
           <Separator className="flex-shrink-0" />
 
-          {selectedTable ? (
+          {hasMultipleSelected ? (
+            <div className="flex-1 p-3">
+              <h3 className="text-sm font-semibold mb-2">
+                Multiple Tables Selected ({selectedTableIds.length})
+              </h3>
+              <p className="text-xs text-muted-foreground mb-3">
+                Hold Shift and click tables to select multiple. Click a table without Shift to edit it.
+              </p>
+              <ScrollArea className="h-full">
+                <div className="space-y-1.5">
+                  {selectedTables.map((table) => (
+                    <TableListItem key={table.id} table={table} />
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          ) : selectedTable ? (
             <TableEditor table={selectedTable} />
           ) : (
             <ScrollArea className="flex-1 min-h-0">

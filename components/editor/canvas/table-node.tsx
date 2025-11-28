@@ -20,18 +20,16 @@ type HoverState = {
 export const TableNode = memo(({ data, selected }: NodeProps) => {
   const { table } = data as unknown as TableNodeData;
   const selectedTableId = useDiagramStore((state) => state.selectedTableId);
+  const selectedTableIds = useDiagramStore((state) => state.selectedTableIds);
   const highlightedTableIds = useDiagramStore((state) => state.highlightedTableIds);
   const selectTable = useDiagramStore((state) => state.selectTable);
   const connectionState = useDiagramStore((state) => state.connectionState);
   const [hoverState, setHoverState] = useState<HoverState>(null);
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const isSelected = selectedTableId === table.id;
+  const isSelected = selectedTableIds.includes(table.id);
+  const isPrimarySelected = selectedTableId === table.id;
   const isHighlighted = highlightedTableIds.includes(table.id);
-
-  const handleClick = () => {
-    selectTable(table.id);
-  };
 
   const showHandle = useCallback((columnId: string, side: 'left' | 'right') => {
     if (hideTimeoutRef.current) {
@@ -52,14 +50,15 @@ export const TableNode = memo(({ data, selected }: NodeProps) => {
 
   return (
     <Card
-      className={`min-w-[300px] cursor-pointer transition-all ${
-        isSelected || selected
+      className={`min-w-[300px] transition-all ${
+        isPrimarySelected
           ? "ring-2 ring-primary shadow-lg"
+          : isSelected
+          ? "ring-2 ring-purple-500 shadow-lg"
           : isHighlighted
           ? "ring-2 ring-blue-400 shadow-md"
           : "shadow-md"
       }`}
-      onClick={handleClick}
     >
       <CardHeader style={{ backgroundColor: table.color }} className="pt-2">
         <CardTitle className="flex items-center gap-2 text-base">
