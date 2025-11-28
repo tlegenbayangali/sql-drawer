@@ -302,8 +302,7 @@ export const useDiagramStore = create<DiagramState>()(
           targetTableId,
           targetColumnId,
           type,
-          offsetX: 0,
-          offsetY: 0,
+          pathType: 'bezier',
         };
 
         state.relationships.push(newRelationship);

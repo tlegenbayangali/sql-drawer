@@ -6,6 +6,9 @@ export type IndexType = "PK" | "UK" | "Index" | "None" | "FK";
 // Relationship types
 export type RelationshipType = "1:1" | "1:N" | "N:1";
 
+// Edge path types
+export type EdgePathType = "straight" | "step" | "smoothstep" | "bezier";
+
 // Column interface for frontend
 export interface Column {
   id: string;
@@ -41,6 +44,7 @@ export interface Relationship {
   targetTableId: string;
   targetColumnId: string;
   type: RelationshipType;
+  pathType?: EdgePathType;
   offsetX?: number;
   offsetY?: number;
 }
