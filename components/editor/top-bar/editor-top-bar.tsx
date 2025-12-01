@@ -12,7 +12,9 @@ export function EditorTopBar() {
   const currentDiagram = useDiagramStore((state) => state.currentDiagram);
   const isSaving = useDiagramStore((state) => state.isSaving);
   const saveDiagram = useDiagramStore((state) => state.saveDiagram);
+  const renameDiagram = useDiagramStore((state) => state.renameDiagram);
   const [diagramName, setDiagramName] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
 
   useEffect(() => {
@@ -31,6 +33,45 @@ export function EditorTopBar() {
     }
   };
 
+  const handleDoubleClick = () => {
+    setIsEditing(true);
+  };
+
+  const handleRename = async () => {
+    if (!currentDiagram || diagramName.trim() === currentDiagram.name) {
+      setIsEditing(false);
+      setDiagramName(currentDiagram?.name || '');
+      return;
+    }
+
+    if (diagramName.trim() === '') {
+      alert('Diagram name cannot be empty');
+      setDiagramName(currentDiagram?.name || '');
+      setIsEditing(false);
+      return;
+    }
+
+    try {
+      await renameDiagram(currentDiagram.id, diagramName.trim());
+      setIsEditing(false);
+      console.log('✅ Diagram renamed successfully!');
+    } catch (error) {
+      console.error('❌ Failed to rename:', error);
+      alert('Failed to rename diagram. Check console for details.');
+      setDiagramName(currentDiagram?.name || '');
+      setIsEditing(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleRename();
+    } else if (e.key === 'Escape') {
+      setDiagramName(currentDiagram?.name || '');
+      setIsEditing(false);
+    }
+  };
+
   if (!currentDiagram) {
     return null;
   }
@@ -44,12 +85,25 @@ export function EditorTopBar() {
             Back
           </Button>
         </Link>
-        <Input
-          value={diagramName}
-          onChange={(e) => setDiagramName(e.target.value)}
-          className="w-[300px]"
-          placeholder="Diagram name"
-        />
+        {isEditing ? (
+          <Input
+            value={diagramName}
+            onChange={(e) => setDiagramName(e.target.value)}
+            onBlur={handleRename}
+            onKeyDown={handleKeyDown}
+            className="w-[300px]"
+            placeholder="Diagram name"
+            autoFocus
+          />
+        ) : (
+          <h1
+            className="text-lg font-semibold cursor-pointer hover:text-muted-foreground transition-colors px-3 py-1 rounded hover:bg-accent"
+            onDoubleClick={handleDoubleClick}
+            title="Double-click to rename"
+          >
+            {diagramName}
+          </h1>
+        )}
       </div>
 
       <div className="flex items-center gap-2">

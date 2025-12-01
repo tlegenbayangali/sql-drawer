@@ -51,6 +51,7 @@ interface DiagramState {
 
   saveDiagram: () => Promise<void>;
   reloadDiagram: (diagramId: string) => Promise<void>;
+  renameDiagram: (diagramId: string, newName: string) => Promise<void>;
 }
 
 export const useDiagramStore = create<DiagramState>()(
@@ -415,6 +416,36 @@ export const useDiagramStore = create<DiagramState>()(
         });
       } catch (error) {
         console.error('Error reloading diagram:', error);
+        throw error;
+      }
+    },
+
+    // Rename diagram
+    renameDiagram: async (diagramId: string, newName: string) => {
+      try {
+        const response = await fetch(`/api/diagrams/${diagramId}/rename`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ name: newName }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          throw new Error(`Failed to rename diagram: ${errorData.error || response.statusText}`);
+        }
+
+        const updatedDiagram = await response.json();
+
+        set((state) => {
+          if (state.currentDiagram) {
+            state.currentDiagram.name = updatedDiagram.name;
+            state.currentDiagram.updatedAt = updatedDiagram.updatedAt;
+          }
+        });
+      } catch (error) {
+        console.error('Error renaming diagram:', error);
         throw error;
       }
     },
